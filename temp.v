@@ -13,6 +13,7 @@ module array_divider
     //reg [31 : 0] out_sum_temp [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     //reg [31 : 0] out_sum [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     wire [32 * n_divide_ps * n_divide_ps : 0] out_sum_temp [sqrt_p][sqrt_p];
+    wire [32 * n_divide_ps * n_divide_ps : 0] out_sum_new_temp [sqrt_p][sqrt_p];
     reg [32 * n_divide_ps * n_divide_ps : 0] out_sum [sqrt_p][sqrt_p];
     
     
@@ -47,6 +48,12 @@ module array_divider
     
     //summing procedure
     generate
+        for (i = 0; i < sqrt_p; i = i + 1)
+            for (j = 0; j < sqrt_p; j = j + 1)
+                for (k = 0; k < n_divide_ps; k = k + 1)
+                    for (v = 0; v < n_divide_ps; v = v + 1)
+                        adder new_sum_temp(out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32],  out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32],  out_sum_new_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32]);
+    
         for (i = 0; i < sqrt_p; i = i + 1)
             for (j = 0; j < sqrt_p; j = j + 1)
                 for (k = 0; k < n_divide_ps; k = k + 1)
