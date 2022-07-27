@@ -3,42 +3,40 @@ module test_bench
 #(parameter n = 2, parameter sqrt_p = 2, parameter n_divide_ps = 1, parameter p = 4)
 ();
     reg clk = 0;
-    reg [32 * n * n : 0] A;
-    reg [32 * n * n : 0] B;
-    wire [32 * n * n : 0] O;
+    reg [32 * n * n - 1 : 0] A;
+    reg [32 * n * n - 1 : 0] B;
+    wire [32 * n * n - 1 : 0] O;
     reg enable = 1;
     reg reset = 1;
     wire out_ready;
     integer i , j;
     initial begin
-        $monitor(clk);
         A[31 : 0] = 1;
         A[63: 32] = 0;
         A[95: 64] = 1;
-        A[123: 96] = 1;
+        A[127: 96] = 1;
         B[31 : 0] = 1;
         B[63: 32] = 0;
         B[95: 64] = 1;
-        B[123: 96] = 1;
+        B[127: 96] = 1;
         
         $display(A[31 : 0],
         A[63: 32],
         A[95: 64],
-        A[123: 96]);
+        A[127: 96]);
         #100;
+        enable = 1;
         reset = 0;
         
         #1000;
-        $display(O[31 : 0],
+        $display("resssssssssssssssssssssssssssssssssssssssssss" ,O[31 : 0],
         O[63: 32],
         O[95: 64],
         O[123: 96]);
+        #1000;
+        $finish;
     end
-    always @(*)
-    begin
-        
-        #10 clk = ~clk;
-    end
+    always  #50 clk = ~clk;
     controller #(2, 2, 1, 4) cc(A, B, clk, enable, reset, O, out_ready);
 
 endmodule
@@ -48,64 +46,101 @@ endmodule
 
 module controller
     #(parameter n = 4, parameter sqrt_p = 2, parameter n_divide_ps = 2, parameter p = 4)
-    (input [32 * n * n : 0] matrix_A, input [32 * n * n : 0] matrix_B, input clk, input enable, input reset, output [32 * n * n : 0] out, output reg out_ready);
+    (input [32 * n * n - 1 : 0] matrix_A, input [32 * n * n - 1: 0] matrix_B, input clk, input enable, input reset, output [32 * n * n - 1: 0] out, output reg out_ready);
     initial begin
+    
+        enable_read = 0;
         #50;
         $display(matrix_A[31 : 0],
         matrix_A[63: 32],
         matrix_A[95: 64],
-        matrix_A[123: 96]);
-        
+        matrix_A[127: 96]);
         $display(matrix_B[31 : 0],
         matrix_B[63: 32],
         matrix_B[95: 64],
-        matrix_B[123: 96]);
+        matrix_B[127: 96]);
+        
+        //$monitor("set the state %d in time: %d", state, $time);
     end
     reg [3 : 0] state = 0;
-    reg enable_read = 0;
+    reg [3 : 0] nx_state = 0;
+    reg enable_read ;
     reg enable_shift = 0;
     reg enable_sum = 0;
     reg [31 : 0] shifted = 0;
-    always @(posedge clk)
+    
+    always @(posedge clk, posedge reset)
     begin
+        //$display(nx_state);
+        //$display("setting next state: %d %d", nx_state,  $time);
+        if (state == 0)
+        begin
+            nx_state = 1;
+            enable_read = 1;
+        end
+        if(reset == 1) 
+             state <= 0;
+         else
+             state <= nx_state; 
+    end 
+    
+    always @(state)
+    begin
+        //$display("set next action %d", $time);
+        //$display("set the action %d -> %d %d", state, nx_state, $time);
         if(!reset)
         begin
             if(enable)
                 case(state)
                     0: 
                         begin
+                            //$display("here %d", $time);
+                            nx_state = 1;
                             enable_read = 1;
-                            state <= 1;
                         end
                     1:
                         begin
-                            enable_read = 0;
-                            state <= 2;
+                            enable_read = 1;
+                            //$display("we set the enable_read %d %d", $time, enable_read);
+                            nx_state = 2;
                         end
                     
                     2:
                         begin
+                            //$display("shit hhhhhhh %d", enable_read);
+                            //$display("shit %d", $time);
+                            
+                            
+                            enable_read = 0;
+                            //$display("set enable read to zero", enable_read);
                             enable_sum = 1;
-                            state <= 3;
+                            nx_state = 3;
                         end
                     3:
                         begin
                             enable_sum = 0;
                             enable_shift = 1;
-                            state <= 4;
+                            nx_state = 4;
                         end
                     4:
                         begin
                             enable_shift = 0;
                             if (shifted < sqrt_p - 1)
-                                state <= 2;
+                                nx_state = 2;
                             else
-                                state <= 5;
+                                nx_state = 5;
+                            shifted = shifted + 1;
                         end
                     5:
                         begin
                             out_ready = 1;
+                            nx_state = 6;
                             //get ready the output
+                        end
+                    6:
+                        begin
+                            out_ready = 0;
+                            nx_state = 0;
                         end
                     default:
                         begin
@@ -113,11 +148,11 @@ module controller
                             enable_shift = 0;
                             enable_sum = 0;
                             enable_read = 0;
-                            state <= 0;
+                            nx_state = 0;
                         end
                 endcase
             else
-                state <= state;
+                nx_state = state;
         end
         else
             begin
@@ -125,10 +160,12 @@ module controller
                 enable_shift = 0;
                 enable_sum = 0;
                 enable_read = 0;
-                state <= 0;
+                nx_state = 0;
             end
+        
+        $display("the reading %d %d", enable_read, $time);
     end
-    array_divider #(2, 2, 1, 4) parallel_process(matrix_A, matrix_B, clk, out);
+    array_divider #(2, 2, 1, 4) parallel_process(matrix_A, matrix_B, clk, out, enable_read, enable_sum, enable_shift);
 endmodule
 
 
@@ -138,18 +175,19 @@ endmodule
 
 module array_divider
     #(parameter n = 4, parameter sqrt_p = 2, parameter n_divide_ps = 2, parameter p = 4)
-    //(input [31 : 0] matrix_A [n : 0][n : 0], input [31 : 0] matrix_B [n : 0][n : 0], input clk);
-    (input [32 * n * n : 0] matrix_A, input [32 * n * n : 0] matrix_B, input clk, output [32 * n * n : 0] multiple_result);
+    (input [32 * n * n - 1: 0] matrix_A, input [32 * n * n - 1 : 0] matrix_B, input clk, output [32 * n * n - 1 : 0] multiple_result, input enable_read, input enable_sum, input enable_shift);
     
     
     
     initial begin
-        #30;
         $display(n);
+        
+        $monitor("set the reading %d in time: %d", enable_read, $time);
+         
         $display(matrix_B[31 : 0],
         matrix_B[63: 32],
         matrix_B[95: 64],
-        matrix_B[123: 96]);
+        matrix_B[127: 96]);
         #300;
         $display(tmp_A[0][0],
         tmp_A[0][1],
@@ -163,17 +201,14 @@ module array_divider
     
     //reg [31 : 0] tmp_A [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     //reg [31 : 0] tmp_B [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
-    reg [32 * n_divide_ps * n_divide_ps : 0] tmp_A [sqrt_p][sqrt_p];
-    reg [32 * n_divide_ps * n_divide_ps : 0] tmp_B [sqrt_p][sqrt_p];
-    reg enable_mul = 0;
-    reg enable_read = 0;
-    reg enable_sum = 0;
-    reg enable_shift = 0;
+    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_A [sqrt_p][sqrt_p];
+    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_B [sqrt_p ][sqrt_p];
+
     //reg [31 : 0] out_sum_temp [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     //reg [31 : 0] out_sum [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
-    wire [32 * n_divide_ps * n_divide_ps : 0] out_sum_temp [sqrt_p][sqrt_p];
-    wire [32 * n_divide_ps * n_divide_ps : 0] out_sum_new_temp [sqrt_p][sqrt_p];
-    reg [32 * n_divide_ps * n_divide_ps : 0] out_sum [sqrt_p][sqrt_p];
+    wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_temp [sqrt_p][sqrt_p];
+    wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_new_temp [sqrt_p][sqrt_p];
+    reg [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum [sqrt_p - 1][sqrt_p ] ;
     
     
     genvar i, j, k , v;
@@ -182,18 +217,20 @@ module array_divider
             for (j = 0; j < sqrt_p; j = j + 1)
                 for (k = 0; k < n_divide_ps; k = k + 1)
                     for (v = 0; v < n_divide_ps; v = v + 1)
-                        always @(clk)
+                        always @(*)
+                        begin
+                            //$display("what the fazzz %d %d ", $time, enable_read);
                             if(enable_read)
                                 begin
-                                    tmp_A[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] <= matrix_A[((i + k) * n + (j + v)) * 32 + 31: ((i + k) * n + (j + v)) * 32];
-                                    tmp_B[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] <= matrix_B[((i + k) * n + (j + v)) * 32 + 31: ((i + k) * n + (j + v)) * 32];
+                                    //$display("reading shit");
+                                    tmp_A[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] = matrix_A[((i + k) * n + (j + v)) * 32 + 31: ((i + k) * n + (j + v)) * 32];
+                                    //$display("what the Faxxxxxxxxxxx   ", matrix_A[((i + k) * n + (j + v)) * 32 + 31: ((i + k) * n + (j + v)) * 32]);
+                                    //$display("hh" , tmp_A[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] );
+                                    //$display("hahah ", i , " j ", j, " k ", k , " v ", v);
+                                    tmp_B[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] = matrix_B[((i + k) * n + (j + v)) * 32 + 31: ((i + k) * n + (j + v)) * 32];
                                     
                                 end
-                        //begin
-                            //TODO check correctness
-                            //copy i_j_A(.i(i * n_divide_ps),.j(jj * n_divide_ps), .matrix_A(matrix_A), .out_matrix(tmp_A[i][j]), .enable(enable_read), .clk(clk));
-                            //copy i_j_B(.i(i * n_divide_ps), .j(jj * n_divide_ps), .matrix_A(matrix_B), .out_matrix(tmp_B[i][j]), .enable(enable_read), .clk(clk));
-                        //end
+                        end
     endgenerate
     
     
@@ -203,6 +240,13 @@ module array_divider
                     for (k = 0; k < n_divide_ps; k = k + 1)
                         for (v = 0; v < n_divide_ps; v = v + 1)
                             assign multiple_result[((i + k) * n + (j + v)) * 32 + 31: ((i + k) * n + (j + v)) * 32] = out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32];
+        for (i = 0; i < sqrt_p; i = i + 1)
+            for (j = 0; j < sqrt_p; j = j + 1)
+                for (k = 0; k < n_divide_ps; k = k + 1)
+                    for (v = 0; v < n_divide_ps; v = v + 1)
+                        always @(enable_read)
+                            if(enable_read)
+                                out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] = 0;
     endgenerate
     
     //summing procedure
@@ -220,7 +264,10 @@ module array_divider
                         always @(clk)
                             if (enable_sum)
                                 //TODO recorrect this
-                                out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] <= out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] + out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32];
+                                begin
+                                    out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] <= out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] + out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32];
+                                    $display("HHHHHH ", out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32]);
+                                end
     endgenerate
     
     
@@ -296,12 +343,10 @@ endmodule
 
 module mul_matrix
 #(parameter n = 2)
-(input [32 * n * n  : 0] mat_A, input [32 * n * n : 0] mat_B, output [32 * n * n : 0] mat_out);
-//(input [32 * n * n  : 0] mat_A, input [31: 0] mat_B[n : 0], output [31: 0] mat_out [n : 0][n : 0]);
-//input [32 * n * n  : 0] mat_A
-    
-    wire [31: 0] mul_res [n : 0][n : 0][n : 0]; 
-    wire [31: 0] acc_res [n : 0][n : 0][n : 0];
+(input [32 * n * n - 1: 0] mat_A, input [32 * n * n  - 1: 0] mat_B, output [32 * n * n - 1 : 0] mat_out);
+
+    wire [31: 0] mul_res [n - 1 : 0][n - 1 : 0][n - 1 : 0]; 
+    wire [31: 0] acc_res [n - 1 : 0][n - 1 : 0][n - 1: 0];
     genvar i, j, k, l;
     
     generate 
@@ -311,29 +356,30 @@ module mul_matrix
                 for (k = 0; k < n; k = k + 1)
                 begin
                     //mul i_j_k(mat_A[i][j], mat_B[j][k], mul_res[i][k][j]);
-                    mul i_j_k(mat_A[(i * n +  j) * 32 + 31 : (i * n +  j) * 32], mat_B[(j * n + k) * 32 + 31 : (j * n + k) * 32], mul_res[i][k][j]);
+                    mul i_j_k(mat_A[(i +  n * j) * 32 + 31 : (i + n *  j) * 32], mat_B[(j + n * k) * 32 + 31 : (j + n * k) * 32], mul_res[i][k][j][31 : 0]);
+                    //$display("in matrix mul", mat_A[(i * n +  j) * 32 + 31 : (i * n +  j) * 32]);
                 end
         
         for (i = 0; i < n; i = i + 1)
             for (j = n - 1; j < n; j = j + 1)
                 for (k = 0; k < n; k = k + 1)
-                    assign acc_res[i][k][j] = 0;
+                    assign acc_res[i][k][j][31 : 0] = mul_res[i][k][j][31: 0];
                 
         for (i = 0; i < n; i = i + 1)
             for (j = 1; j < n; j = j + 1)
                 for (k = 0; k < n; k = k + 1)
-                    adder i_j_k(acc_res[i][k][j], mul_res[i][k][j], acc_res[i][k][j - 1]);
+                    adder i_j_k(acc_res[i][k][j][31 : 0], mul_res[i][k][j - 1][31 : 0], acc_res[i][k][j - 1][31 : 0]);
         
         for (i = 0; i < n; i = i + 1)
-            for (j = n - 1; j < n; j = j + 1)
-                for (k = 0; k < n; k = k + 1)
-                    //assign mat_out[i][k] = acc_res[i][k][0];
-                    assign mat_out[(i * n + k)*32 + 31 : (i * n + k)*32] = acc_res[i][k][0];
+            for (k = 0; k < n; k = k + 1)
+                //assign mat_out[i][k] = acc_res[i][k][0];
+                if (n > 1)
+                    assign mat_out[(i + n * k)*32 + 31 : (i + n * k)*32] = acc_res[i][k][0][31 : 0];
+                else
+                    assign mat_out[(i + n * k)*32 + 31 : (i + n * k)*32] = mul_res[i][k][0][31 : 0];
     endgenerate
 
 endmodule
-
-
 
 
 module adder(input [31 : 0] a, input [31: 0] b, output [31: 0] c);
