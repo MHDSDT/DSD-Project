@@ -1,7 +1,7 @@
 module array_divider
     #(parameter n = 4, parameter sqrt_p = 2, parameter n_divide_ps = 2, parameter p = 4)
     //(input [31 : 0] matrix_A [n : 0][n : 0], input [31 : 0] matrix_B [n : 0][n : 0], input clk);
-    (input [32 * n * n : 0] matrix_A, input [32 * n * n : 0] matrix_B, input clk);
+    (input [32 * n * n : 0] matrix_A, input [32 * n * n : 0] matrix_B, input clk, output [32 * n * n : 0] multiple_result);
     //reg [31 : 0] tmp_A [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     //reg [31 : 0] tmp_B [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     reg [32 * n_divide_ps * n_divide_ps : 0] tmp_A [sqrt_p][sqrt_p];
@@ -36,6 +36,14 @@ module array_divider
                         //end
     endgenerate
     
+    
+    generate    
+        for (i = 0; i < sqrt_p; i = i + 1)
+                for (j = 0; j < sqrt_p; j = j + 1)
+                    for (k = 0; k < n_divide_ps; k = k + 1)
+                        for (v = 0; v < n_divide_ps; v = v + 1)
+                            assign multiple_result[((i + k) * n + (j + v)) * 32 + 31: ((i + k) * n + (j + v)) * 32] = out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32];
+    endgenerate
     
     //summing procedure
     generate
