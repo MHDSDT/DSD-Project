@@ -188,31 +188,6 @@ module array_divider
     
     
     
-    initial begin
-        #100
-        $display(n);
-        
-         
-        $display(matrix_B[31 : 0],
-        matrix_B[63: 32],
-        matrix_B[95: 64],
-        matrix_B[127: 96]);
-        #300;
-        $display(tmp_A[0][0],
-        tmp_A[0][1],
-        tmp_A[1][0],
-        tmp_A[1][1]);
-        //$monitor(out_sum[0][0], " " , out_sum[1][0], " ", out_sum[0][1], " ", out_sum[1][1], "  checking this sum and shift 0  1 ");
-        $monitor(out_sum_temp[0][0], " " , out_sum_temp[1][0], " ", out_sum_temp[0][1], " ", out_sum_temp[1][1], "  checking this sum and shift 0  1 ");
-        //$monitor(tmp_A[0][0], " " , tmp_A[1][0], " ", tmp_A[0][1], " ", tmp_A[1][1], " ", $time, "  checking this sum and shift 0  1 ");
-        //$monitor(tmp_AA[0][0], " " , tmp_AA[1][0], " ", tmp_AA[0][1], " ", tmp_AA[1][1], " ", $time, "  checking this sum and shift 0  1 ");
-        //$monitor(tmp_B[0][0], " " , tmp_B[1][0], " ", tmp_B[0][1], " ", tmp_B[1][1], " ", $time, "  checking this sum and shift 0  1 ");
-        //$monitor(tmp_BB[0][0], " " , tmp_BB[1][0], " ", tmp_BB[0][1], " ", tmp_BB[1][1], " ", $time, "  checking this sum and shift 0  1 ");
-    end
-    
-    
-    
-    
     
     //reg [31 : 0] tmp_A [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     //reg [31 : 0] tmp_B [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
