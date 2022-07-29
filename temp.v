@@ -1,4 +1,3 @@
-
 module test_bench
 #(parameter n = 2, parameter sqrt_p = 2, parameter n_divide_ps = 1, parameter p = 4)
 ();
@@ -10,41 +9,46 @@ module test_bench
     reg reset = 1;
     wire out_ready;
     integer i , j;
-    initial begin
-        A[31 : 0] = 1;
-        A[63: 32] = 4;
-        A[95: 64] = 2;
-        A[127: 96] = 4;
-        B[31 : 0] = 0;
-        B[63: 32] = 1;
-        B[95: 64] = 1;
-        B[127: 96] = 1;
-        
-        $display(A[31 : 0],
-        A[63: 32],
-        A[95: 64],
-        A[127: 96]);
-        $display(B[31 : 0],
-        B[63: 32],
-        B[95: 64],
-        B[127: 96]);
-        #100;
+    integer               data_file    ; // file handler
+	integer               scan_file    ; // file handler
+	`define NULL 0    
+
+	initial begin
+      data_file = $fopen("testA.txt", "r");
+      scan_file = $fscanf(data_file, "%b\n", A[31:0]);
+      scan_file = $fscanf(data_file, "%b\n", A[63:32]);
+      scan_file = $fscanf(data_file, "%b\n", A[95:64]);
+      scan_file = $fscanf(data_file, "%b\n", A[127:96]);
+      $display("Matrix A:\n",A[31 : 0]," ",
+                 A[63: 32],"\n",
+               A[95: 64]," ",
+                 A[127: 96], "\n");
+      data_file = $fopen("testB.txt", "r");
+      scan_file = $fscanf(data_file, "%b\n", B[31:0]);
+      scan_file = $fscanf(data_file, "%b\n", B[63:32]);
+      scan_file = $fscanf(data_file, "%b\n", B[95:64]);
+      scan_file = $fscanf(data_file, "%b\n", B[127:96]);
+      $display("Matrix B:\n",B[31 : 0]," ",
+                 B[63: 32],"\n",
+               B[95: 64]," ",
+                 B[127: 96], "\n");
+       #100;
         enable = 1;
         reset = 0;
         
-        #1100;
-        $display("resssssssssssssssssssssssssssssssssssssssssss" ,O[31 : 0],
-        O[63: 32],
-        O[95: 64],
-        O[123: 96]);
+        #1000;
+      $display("Mult Result:\n",O[31 : 0]," ",
+                 O[63: 32],"\n",
+               O[95: 64]," ",
+                O[127: 96], "\n");
         #1000;
         $finish;
-    end
+	end
+    
     always  #50 clk = ~clk;
     controller #(2, 2, 1, 4) cc(A, B, clk, enable, reset, O, out_ready);
 
 endmodule
-
 
 
 
