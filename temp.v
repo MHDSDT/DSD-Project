@@ -14,24 +14,25 @@ module test_bench
 	`define NULL 0    
 
 	initial begin
-      data_file = $fopen("testA.txt", "r");
-      scan_file = $fscanf(data_file, "%b\n", A[31:0]);
+      //data_file = $fopen("testA.txt", "r");
+      /*scan_file = $fscanf(data_file, "%b\n", A[31:0]);
       scan_file = $fscanf(data_file, "%b\n", A[63:32]);
       scan_file = $fscanf(data_file, "%b\n", A[95:64]);
       scan_file = $fscanf(data_file, "%b\n", A[127:96]);
-      $display("Matrix A:\n",A[31 : 0]," ",
-                 A[63: 32],"\n",
-               A[95: 64]," ",
-                 A[127: 96], "\n");
-      data_file = $fopen("testB.txt", "r");
+      */
+      A[31 : 0] = 10;
+        A[63: 32] = 9;
+        A[95: 64] = 2;
+        A[127: 96] = 1;
+      /*data_file = $fopen("testB.txt", "r");
       scan_file = $fscanf(data_file, "%b\n", B[31:0]);
       scan_file = $fscanf(data_file, "%b\n", B[63:32]);
       scan_file = $fscanf(data_file, "%b\n", B[95:64]);
-      scan_file = $fscanf(data_file, "%b\n", B[127:96]);
-      $display("Matrix B:\n",B[31 : 0]," ",
-                 B[63: 32],"\n",
-               B[95: 64]," ",
-                 B[127: 96], "\n");
+      scan_file = $fscanf(data_file, "%b\n", B[127:96]);*/
+        B[31 : 0] = 1;
+        B[63: 32] = 9;
+        B[95: 64] = 1;
+        B[127: 96] = 0;
        #100;
         enable = 1;
         reset = 0;
@@ -201,6 +202,8 @@ module array_divider
     //reg [31 : 0] out_sum [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_temp [sqrt_p][sqrt_p];
     wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_new_temp [sqrt_p][sqrt_p];
+    wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_new_temp_final [sqrt_p][sqrt_p];
+    
     reg [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum [sqrt_p][sqrt_p] ;
     
     
@@ -255,13 +258,17 @@ module array_divider
             for (j = 0; j < sqrt_p; j = j + 1)
                 for (k = 0; k < n_divide_ps; k = k + 1)
                     for (v = 0; v < n_divide_ps; v = v + 1)
+                        adder x_adder(out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32], out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32], out_sum_new_temp_final[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32]);
+        for (i = 0; i < sqrt_p; i = i + 1)
+            for (j = 0; j < sqrt_p; j = j + 1)
+                for (k = 0; k < n_divide_ps; k = k + 1)
+                    for (v = 0; v < n_divide_ps; v = v + 1)
                         always @(posedge enable_sum)
                             if (enable_sum)
                                 //TODO recorrect this
                                 begin
-                                    out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] = out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] + out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32];
+                                    out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32] = out_sum_new_temp_final[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32];
                                     
-                                    //$display("HHHHHH ", out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32]);
                                     
                                 end
     endgenerate
@@ -405,7 +412,6 @@ endmodule
 module mul(input [31: 0] a, input [31: 0] b, output [31: 0] c);
     assign c = a * b;
 endmodule
-
 
 
 
