@@ -1,3 +1,4 @@
+
 module test_bench
 #(parameter n = 2, parameter sqrt_p = 2, parameter n_divide_ps = 1, parameter p = 4)
 ();
@@ -9,42 +10,36 @@ module test_bench
     reg reset = 1;
     wire out_ready;
     integer i , j;
-    integer               data_file    ; // file handler
-	integer               scan_file    ; // file handler
-	`define NULL 0    
-
-	initial begin
-      data_file = $fopen("testA.txt", "r");
-      scan_file = $fscanf(data_file, "%b\n", A[31:0]);
-      scan_file = $fscanf(data_file, "%b\n", A[63:32]);
-      scan_file = $fscanf(data_file, "%b\n", A[95:64]);
-      scan_file = $fscanf(data_file, "%b\n", A[127:96]);
-      $display("Matrix A:\n",A[31 : 0]," ",
-                 A[63: 32],"\n",
-               A[95: 64]," ",
-                 A[127: 96], "\n");
-      data_file = $fopen("testB.txt", "r");
-      scan_file = $fscanf(data_file, "%b\n", B[31:0]);
-      scan_file = $fscanf(data_file, "%b\n", B[63:32]);
-      scan_file = $fscanf(data_file, "%b\n", B[95:64]);
-      scan_file = $fscanf(data_file, "%b\n", B[127:96]);
-      $display("Matrix B:\n",B[31 : 0]," ",
-                 B[63: 32],"\n",
-               B[95: 64]," ",
-                 B[127: 96], "\n");
-       #100;
+    initial begin
+        A[31 : 0] = 1;
+        A[63: 32] = 4;
+        A[95: 64] = 2;
+        A[127: 96] = 4;
+        B[31 : 0] = 0;
+        B[63: 32] = 1;
+        B[95: 64] = 1;
+        B[127: 96] = 1;
+        
+        $display(A[31 : 0],
+        A[63: 32],
+        A[95: 64],
+        A[127: 96]);
+        $display(B[31 : 0],
+        B[63: 32],
+        B[95: 64],
+        B[127: 96]);
+        #100;
         enable = 1;
         reset = 0;
         
-        #1000;
-      $display("Mult Result:\n",O[31 : 0]," ",
-                 O[63: 32],"\n",
-               O[95: 64]," ",
-                O[127: 96], "\n");
+        #1100;
+        $display("resssssssssssssssssssssssssssssssssssssssssss" ,O[31 : 0],
+        O[63: 32],
+        O[95: 64],
+        O[123: 96]);
         #1000;
         $finish;
-	end
-    
+    end
     always  #50 clk = ~clk;
     controller #(2, 2, 1, 4) cc(A, B, clk, enable, reset, O, out_ready);
 
@@ -59,7 +54,8 @@ module controller
     reg [3 : 0] state = 0;
     reg [3 : 0] nx_state = 0;
     reg enable_read  = 0;
-    reg enable_shift = 0;
+    reg enable_shift1 = 0;
+    reg enable_shift2 = 0;
     reg enable_sum = 0;
     reg [31 : 0] shifted = 0;
     
@@ -113,16 +109,24 @@ module controller
                     3:
                         begin
                             enable_sum = 0;
-                            enable_shift = 1;
-                            nx_state = 4;
+                            enable_shift1 = 1;
+                            enable_shift2 = 0;
+                            nx_state = 8;
                         end
                     4:
                         begin
-                            enable_shift = 0;
+                            enable_shift1 = 0;
+                            enable_shift2 = 0;
                             if (shifted < sqrt_p - 1)
+                            begin
                                 nx_state = 2;
+                                shifted = 0;
+                            end
                             else
+                            begin
                                 nx_state = 5;
+                                shifted = 0;
+                            end
                             shifted = shifted + 1;
                         end
                     5:
@@ -136,10 +140,17 @@ module controller
                             out_ready = 0;
                             nx_state = 0;
                         end
+                    8:
+                        begin
+                            enable_shift1 = 0;
+                            enable_shift2 = 1;
+                            nx_state = 4;
+                        end
                     default:
                         begin
                             out_ready = 0;
-                            enable_shift = 0;
+                            enable_shift1 = 0;
+                            enable_shift2 = 0;
                             enable_sum = 0;
                             enable_read = 0;
                             nx_state = 0;
@@ -151,14 +162,15 @@ module controller
         else
             begin
                 out_ready = 0;
-                enable_shift = 0;
+                enable_shift1 = 0;
+                enable_shift2 = 0;
                 enable_sum = 0;
                 enable_read = 0;
                 nx_state = 0;
             end
         
     end
-    array_divider #(2, 2, 1, 4) parallel_process(matrix_A, matrix_B, clk, out, enable_read, enable_sum, enable_shift, reset);
+    array_divider #(2, 2, 1, 4) parallel_process(matrix_A, matrix_B, clk, out, enable_read, enable_sum, enable_shift1, enable_shift2, reset);
 endmodule
 
 
@@ -168,7 +180,7 @@ endmodule
 
 module array_divider
     #(parameter n = 4, parameter sqrt_p = 2, parameter n_divide_ps = 2, parameter p = 4)
-    (input [32 * n * n - 1: 0] matrix_A, input [32 * n * n - 1 : 0] matrix_B, input clk, output [32 * n * n - 1 : 0] multiple_result, input enable_read, input enable_sum, input enable_shift, input reset);
+    (input [32 * n * n - 1: 0] matrix_A, input [32 * n * n - 1 : 0] matrix_B, input clk, output [32 * n * n - 1 : 0] multiple_result, input enable_read, input enable_sum, input enable_shift1, input enable_shift2, input reset);
     
     
     
@@ -186,6 +198,12 @@ module array_divider
         tmp_A[0][1],
         tmp_A[1][0],
         tmp_A[1][1]);
+        //$monitor(out_sum[0][0], " " , out_sum[1][0], " ", out_sum[0][1], " ", out_sum[1][1], "  checking this sum and shift 0  1 ");
+        $monitor(out_sum_temp[0][0], " " , out_sum_temp[1][0], " ", out_sum_temp[0][1], " ", out_sum_temp[1][1], "  checking this sum and shift 0  1 ");
+        //$monitor(tmp_A[0][0], " " , tmp_A[1][0], " ", tmp_A[0][1], " ", tmp_A[1][1], " ", $time, "  checking this sum and shift 0  1 ");
+        //$monitor(tmp_AA[0][0], " " , tmp_AA[1][0], " ", tmp_AA[0][1], " ", tmp_AA[1][1], " ", $time, "  checking this sum and shift 0  1 ");
+        //$monitor(tmp_B[0][0], " " , tmp_B[1][0], " ", tmp_B[0][1], " ", tmp_B[1][1], " ", $time, "  checking this sum and shift 0  1 ");
+        //$monitor(tmp_BB[0][0], " " , tmp_BB[1][0], " ", tmp_BB[0][1], " ", tmp_BB[1][1], " ", $time, "  checking this sum and shift 0  1 ");
     end
     
     
@@ -196,6 +214,9 @@ module array_divider
     //reg [31 : 0] tmp_B [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_A [sqrt_p][sqrt_p];
     reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_B [sqrt_p ][sqrt_p];
+    
+    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_AA [sqrt_p][sqrt_p];
+    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_BB [sqrt_p ][sqrt_p];
 
     //reg [31 : 0] out_sum_temp [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     //reg [31 : 0] out_sum [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
@@ -272,7 +293,7 @@ module array_divider
         for (i = 0; i < sqrt_p; i = i + 1)
             for (j = 0; j < sqrt_p; j = j + 1)
             begin
-                mul_matrix #(n_divide_ps) i_j_AB(tmp_A[i][j], tmp_B[i][j], out_sum_temp[i][j]);
+                mul_matrix #(n_divide_ps) i_j_AB(tmp_A[i][j], tmp_B[i][i], out_sum_temp[j][i]);
             end
     endgenerate
     
@@ -296,8 +317,8 @@ module array_divider
                             if (ii == sqrt_p - 1)
                                 //tmp_A[0][j][k][l] <= tmp_A[i][j][k][l];
                                 always @(posedge clk)
-                                    if(enable_shift)
-                                        tmp_A[0][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32] <= tmp_A[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll) * 32];
+                                    if(enable_shift1)
+                                        tmp_AA[0][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32] <= tmp_A[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll) * 32];
         
             for (ii = 0; ii < sqrt_p; ii = ii + 1)
                 for(jj = 0; jj < sqrt_p; jj = jj + 1)
@@ -305,10 +326,10 @@ module array_divider
                         for(ll = 0; ll < n_divide_ps; ll = ll + 1)
                             if (ii != sqrt_p - 1)
                                 always @(posedge clk)
-                                    if(enable_shift)
-                                        tmp_A[ii + 1][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32] <= tmp_A[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32];
+                                    if(enable_shift1)
+                                        tmp_AA[ii + 1][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32] <= tmp_A[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32];
                                 
-                         
+            
             //shift B to down
             
             for (ii = 0; ii < sqrt_p; ii = ii + 1)
@@ -318,8 +339,8 @@ module array_divider
                             if (jj == sqrt_p - 1)
                                 //tmp_A[i][0][k][l] <= tmp_A[i][j][k][l];
                                 always @(posedge clk)
-                                    if(enable_shift)
-                                        tmp_B[ii][0][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll) * 32] = tmp_B[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32];
+                                    if(enable_shift1)
+                                        tmp_BB[ii][0][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll) * 32] = tmp_B[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32];
     
             for (ii = 0; ii < sqrt_p; ii = ii + 1)
                 for(jj = 0; jj < sqrt_p; jj = jj + 1)
@@ -327,10 +348,28 @@ module array_divider
                         for(ll = 0; ll < n_divide_ps; ll = ll + 1)
                             if (jj != sqrt_p - 1)
                                 always @(posedge clk)
-                                    if(enable_shift)
+                                    if(enable_shift1)
                                 //tmp_A[i][j + 1]][k][l] <= tmp_A[i][j][k][l];
-                                        tmp_B[ii][jj + 1][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32] = tmp_B[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32];
-        
+                                        tmp_BB[ii][jj + 1][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32] = tmp_B[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll)*32];
+
+
+
+            for (ii = 0; ii < sqrt_p; ii = ii + 1)
+                for(jj = 0; jj < sqrt_p; jj = jj + 1)
+                    for(kk = 0; kk < n_divide_ps; kk = kk + 1)
+                        for(ll = 0; ll < n_divide_ps; ll = ll + 1)
+                            always @(posedge clk)
+                                if(enable_shift2)
+                                    tmp_A[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll) * 32] = tmp_AA[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll) * 32];
+            
+            for (ii = 0; ii < sqrt_p; ii = ii + 1)
+                for(jj = 0; jj < sqrt_p; jj = jj + 1)
+                    for(kk = 0; kk < n_divide_ps; kk = kk + 1)
+                        for(ll = 0; ll < n_divide_ps; ll = ll + 1)
+                            always @(posedge clk)
+                                if(enable_shift2)
+                                    tmp_B[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll) * 32] = tmp_BB[ii][jj][(kk * n_divide_ps + ll) * 32 + 31 : (kk * n_divide_ps + ll) * 32];
+    
     endgenerate
     
 
