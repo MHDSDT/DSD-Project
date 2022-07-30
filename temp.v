@@ -1,3 +1,13 @@
+`define INFINITY_POSITIVE_CONST 32'b01111111100000000000000000000000
+`define INFINITY_NEGATIVE_CONST 32'b11111111100000000000000000000000
+`define INFINITY_GENERAL_PATTERN 32'b?1111111100000000000000000000000
+`define QNAN_CONST 32'b?111111111??????????????????????
+`define SNAN_CONST 32'b?1111111101?????????????????????
+`define QNAN_SAMPLE_CONST 32'b01111111110000000000000000000000
+`define SNAN_SAMPLE_CONST 32'b01111111101000000000000000000000
+`define ZERO 32'b0
+`define POSITIVE_HALF 32'b00111111000000000000000000000000
+
 module test_bench
 #(parameter n = 2, parameter sqrt_p = 2, parameter n_divide_ps = 1, parameter p = 4)
 ();
@@ -14,25 +24,16 @@ module test_bench
 	`define NULL 0    
 
 	initial begin
-      //data_file = $fopen("testA.txt", "r");
-      /*scan_file = $fscanf(data_file, "%b\n", A[31:0]);
+      data_file = $fopen("testA.txt", "r");
+      scan_file = $fscanf(data_file, "%b\n", A[31:0]);
       scan_file = $fscanf(data_file, "%b\n", A[63:32]);
       scan_file = $fscanf(data_file, "%b\n", A[95:64]);
       scan_file = $fscanf(data_file, "%b\n", A[127:96]);
-      */
-      A[31 : 0] = 10;
-        A[63: 32] = 9;
-        A[95: 64] = 2;
-        A[127: 96] = 1;
-      /*data_file = $fopen("testB.txt", "r");
+      data_file = $fopen("testB.txt", "r");
       scan_file = $fscanf(data_file, "%b\n", B[31:0]);
       scan_file = $fscanf(data_file, "%b\n", B[63:32]);
       scan_file = $fscanf(data_file, "%b\n", B[95:64]);
-      scan_file = $fscanf(data_file, "%b\n", B[127:96]);*/
-        B[31 : 0] = 1;
-        B[63: 32] = 9;
-        B[95: 64] = 1;
-        B[127: 96] = 0;
+      scan_file = $fscanf(data_file, "%b\n", B[127:96]);
        #100;
         enable = 1;
         reset = 0;
@@ -189,7 +190,9 @@ module array_divider
     
     
     
-    
+    wire overflow;
+    wire underflow;
+    wire inexcat;
     //reg [31 : 0] tmp_A [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     //reg [31 : 0] tmp_B [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_A [sqrt_p][sqrt_p];
@@ -252,13 +255,13 @@ module array_divider
             for (j = 0; j < sqrt_p; j = j + 1)
                 for (k = 0; k < n_divide_ps; k = k + 1)
                     for (v = 0; v < n_divide_ps; v = v + 1)
-                        adder new_sum_temp(out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32],  out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32],  out_sum_new_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32]);
+                        FP_Adder new_sum_temp(out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32],  out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32],  out_sum_new_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32], overflow, underflow, inexcat);
     
         for (i = 0; i < sqrt_p; i = i + 1)
             for (j = 0; j < sqrt_p; j = j + 1)
                 for (k = 0; k < n_divide_ps; k = k + 1)
                     for (v = 0; v < n_divide_ps; v = v + 1)
-                        adder x_adder(out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32], out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32], out_sum_new_temp_final[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32]);
+                        FP_Adder x_adder(out_sum[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32], out_sum_temp[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32], out_sum_new_temp_final[i][j][(k * n_divide_ps + v)*32 + 31: (k * n_divide_ps + v)*32], overflow, underflow, inexcat);
         for (i = 0; i < sqrt_p; i = i + 1)
             for (j = 0; j < sqrt_p; j = j + 1)
                 for (k = 0; k < n_divide_ps; k = k + 1)
@@ -281,13 +284,6 @@ module array_divider
             begin
                 mul_matrix #(n_divide_ps) i_j_AB(tmp_A[i][j], tmp_B[i][i], out_sum_temp[j][i]);
             end
-    endgenerate
-    
-    genvar i_sum, j_sum;
-    generate 
-        //for (i_sum = 0; i_sum < sqrt_p; i_sum = i_sum + 1)
-            //for (j_sum = 0; j_sum < sqrt_p; j_sum = j_sum + 1)
-                //adder sum_i_sum_j(out_sum_temp[i_sum][j_sum], out_sum[i_sum][j_sum], enable_sum);
     endgenerate
     
     genvar ii, jj, kk, ll;
@@ -372,7 +368,10 @@ module mul_matrix
     wire [31: 0] mul_res [n - 1 : 0][n - 1 : 0][n - 1 : 0]; 
     wire [31: 0] acc_res [n - 1 : 0][n - 1 : 0][n - 1: 0];
     genvar i, j, k, l;
-    
+    wire overflow;
+    wire underflow;
+    wire inexcat;
+
     generate 
         
         for (i = 0; i < n; i = i + 1)
@@ -380,7 +379,7 @@ module mul_matrix
                 for (k = 0; k < n; k = k + 1)
                 begin
                     //mul i_j_k(mat_A[i][j], mat_B[j][k], mul_res[i][k][j]);
-                    mul i_j_k(mat_A[(i +  n * j) * 32 + 31 : (i + n *  j) * 32], mat_B[(j + n * k) * 32 + 31 : (j + n * k) * 32], mul_res[i][k][j][31 : 0]);
+                    FP_Multiplicator i_j_k(mat_A[(i +  n * j) * 32 + 31 : (i + n *  j) * 32], mat_B[(j + n * k) * 32 + 31 : (j + n * k) * 32],  mul_res[i][k][j][31 : 0], overflow, underflow);
                     //$display("in matrix mul", mat_A[(i * n +  j) * 32 + 31 : (i * n +  j) * 32]);
                 end
         
@@ -392,7 +391,7 @@ module mul_matrix
         for (i = 0; i < n; i = i + 1)
             for (j = 1; j < n; j = j + 1)
                 for (k = 0; k < n; k = k + 1)
-                    adder i_j_k(acc_res[i][k][j][31 : 0], mul_res[i][k][j - 1][31 : 0], acc_res[i][k][j - 1][31 : 0]);
+                    FP_Adder i_j_k(acc_res[i][k][j][31 : 0], mul_res[i][k][j - 1][31 : 0], acc_res[i][k][j - 1][31 : 0], overflow, underflow, inexcat);
         
         for (i = 0; i < n; i = i + 1)
             for (k = 0; k < n; k = k + 1)
@@ -406,18 +405,171 @@ module mul_matrix
 endmodule
 
 
-module adder(input [31 : 0] a, input [31: 0] b, output [31: 0] c);
-    assign c = a + b;
+
+//------------------------------------------------------------------
+module FP_Multiplicator (
+    input [31:0] a,
+    input [31:0] b,
+    output reg [31:0] result,
+    output reg overflow,
+    output reg underflow
+);
+
+// mantissa + exponent + sign extraction
+wire sign_a = a[31];
+wire sign_b = b[31];
+
+wire [7:0] exp_a = a[30:23];
+wire [7:0] exp_b = b[30:23];
+
+wire [23:0] mnts_a = {1'b1, a[22:0]};
+wire [23:0] mnts_b = {1'b1, b[22:0]};
+
+// combinational logic
+reg [47:0] result_mnts_mul;
+reg [7:0] result_exp_mul;
+always @(*) begin
+    underflow = 0;
+    overflow = 0;
+    result_exp_mul = 0;
+    result_mnts_mul = 0;
+    // case: a = zero
+    if (a == `ZERO) begin
+        // case: b is either NAN or infinity
+            result = `ZERO;
+    // case: b = 0
+    end else if (b == `ZERO) begin
+            result = `ZERO;
+    // Infinity check
+    end else begin
+        // compute sign of result
+        result[31] = sign_a ^ sign_b;
+        // compute exponent result
+        result_exp_mul = exp_a + exp_b - 127;
+        if (exp_a > 127 && exp_b > 127 && result_exp_mul < 127)  begin // overflow
+            overflow = 1;       
+            result = `INFINITY_POSITIVE_CONST;
+            result[31] = sign_a ^ sign_b;       
+        end else if (exp_a < 127 && exp_b < 127 && result_exp_mul > 127) begin // underflow
+            underflow = 1;
+            result = `ZERO;
+        end else begin
+            // compute mantissa of result
+            result_mnts_mul = 0; // reseting this reg
+            result_mnts_mul = mnts_a * mnts_b;
+            // normalisation of mantissa multiplication result 
+            case (result_mnts_mul[47:46])
+                2'd0: begin
+                    result_mnts_mul <<= 1;
+                    result_exp_mul--;
+                end
+                2'd1: begin
+                    // We are good!
+                end
+                2'd2: begin
+                    result_mnts_mul >>= 1;
+                    result_exp_mul++;
+                end
+                2'd3: begin
+                    result_mnts_mul >>= 1;
+                    result_exp_mul++;
+                end
+            endcase
+            result[22:0] = result_mnts_mul[45 -: 23];
+            result[30:23] = result_exp_mul;        
+        end     
+    end
+end
+
 endmodule
-module mul(input [31: 0] a, input [31: 0] b, output [31: 0] c);
-    assign c = a * b;
+
+
+module FP_Adder (
+    input wire [31:0] a,
+    input wire [31:0] b,
+    output reg [31:0] result,
+    output reg underflow,
+    output reg overflow,
+    output reg inexcat
+);
+    // Registers needed in normalizing the exponents
+    reg [2+22:0] a_fraction, b_fraction; // one more bit for real number
+    reg [7:0] result_exponent, counter;
+    wire [7:0] a_exponent = a[30:23];
+    wire [7:0] b_exponent = b[30:23];
+    wire same_signs = b[31] == a[31];
+
+    // Normalize is used twice in the very end. So we macro it
+    `define NORMALIZE \
+        while (a_fraction[23] == 0) begin \
+            a_fraction <<= 1; \
+            result_exponent--; \
+            if (result_exponent == 0) begin \
+                underflow = a[31]; \
+                overflow = ~a[31]; \
+            end \
+        end
+
+    always @(*)begin
+        // Reset everything
+        {underflow, overflow, inexcat} = 0;
+        {a_fraction, b_fraction, result_exponent} = 0;
+        counter = 0;
+        // If one of them is NaN the result is NaN
+        if (b == 0) begin // If b is zero then a is the result!
+            result = a;
+        end else if (a == 0) begin
+            result = b;
+        // Infinity checks
+        end else begin // Now we are talking real numbers...
+            // Set the registers
+            a_fraction = {2'b1, a[22:0]};
+            b_fraction = {2'b1, b[22:0]};
+            // At first we have to normalize the numbers
+            if (a_exponent > b_exponent) begin
+                result_exponent = a_exponent;
+                for (counter = 0; counter < a_exponent - b_exponent; counter++) begin
+                    if (b_fraction[0] == 1)
+                        inexcat = 1; // We are loosing digits!
+                    b_fraction >>= 1; // shift
+                end
+            end else if (b_exponent > a_exponent) begin
+                result_exponent = b_exponent;
+                for (counter = 0; counter < b_exponent - a_exponent; counter++) begin
+                    if (a_fraction[0] == 1)
+                        inexcat = 1; // We are loosing digits!
+                    a_fraction >>= 1; // shift
+                end
+            end else begin
+                result_exponent = a_exponent;
+            end
+            // We have normalized fractions
+            if (same_signs) begin
+                a_fraction += b_fraction;
+                if (a_fraction[24]) begin
+                    result_exponent++;
+                    if (a_fraction[0])
+                        inexcat = 1;
+                    a_fraction >>= 1;
+                end
+                result = {a[31], result_exponent, a_fraction[22:0]};
+                underflow = result_exponent == 8'b1111_1111 & a[31];
+                overflow = result_exponent == 8'b1111_1111 & (~a[31]);
+            end else begin
+                a_fraction = a_fraction + {1'b0, ~b_fraction[23:0]} + 1;
+                if (a_fraction[24]) begin
+                    if (a_fraction[23:0] == 0) begin
+                        result = 0;
+                    end else begin
+                        `NORMALIZE
+                        result = {a[31], result_exponent, a_fraction[22:0]};
+                    end
+                end else begin
+                    a_fraction = -a_fraction;
+                    `NORMALIZE
+                    result = {~a[31], result_exponent, a_fraction[22:0]};
+                end
+            end
+        end
+    end
 endmodule
-
-
-
-
-
-
-
-
-
