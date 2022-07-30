@@ -195,19 +195,19 @@ module array_divider
     wire inexcat;
     //reg [31 : 0] tmp_A [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     //reg [31 : 0] tmp_B [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
-    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_A [sqrt_p][sqrt_p];
-    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_B [sqrt_p ][sqrt_p];
+    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_A [sqrt_p-1:0][sqrt_p-1:0];
+    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_B [sqrt_p-1:0][sqrt_p-1:0];
     
-    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_AA [sqrt_p][sqrt_p];
-    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_BB [sqrt_p ][sqrt_p];
+    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_AA [sqrt_p-1:0][sqrt_p-1:0];
+    reg [32 * n_divide_ps * n_divide_ps - 1: 0] tmp_BB [sqrt_p-1:0][sqrt_p-1:0];
 
     //reg [31 : 0] out_sum_temp [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
     //reg [31 : 0] out_sum [sqrt_p][sqrt_p][n_divide_ps][n_divide_ps];
-    wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_temp [sqrt_p][sqrt_p];
-    wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_new_temp [sqrt_p][sqrt_p];
-    wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_new_temp_final [sqrt_p][sqrt_p];
+    wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_temp [sqrt_p-1:0][sqrt_p-1:0];
+    wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_new_temp [sqrt_p-1:0][sqrt_p-1:0];
+    wire [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum_new_temp_final [sqrt_p-1:0][sqrt_p-1:0];
     
-    reg [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum [sqrt_p][sqrt_p] ;
+    reg [32 * n_divide_ps * n_divide_ps - 1 : 0] out_sum [sqrt_p-1:0][sqrt_p-1:0];;
     
     
     genvar i, j, k , v;
