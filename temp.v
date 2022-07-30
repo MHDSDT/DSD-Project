@@ -39,10 +39,10 @@ module test_bench
         reset = 0;
         
         #1000;
-      $display("Mult Result:\n",O[31 : 0]," ",
-                 O[63: 32],"\n",
-               O[95: 64]," ",
-                O[127: 96], "\n");
+      $display("Mult Result:\n %h %h\n%h %h",O[31 : 0],
+                 O[63: 32],
+               O[95: 64],
+                O[127: 96]);
         #1000;
         $finish;
 	end
